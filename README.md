@@ -64,10 +64,11 @@
 ![Profi scheme](docs/figures/profi-scheme.png)
 
 Доступны два docker-образа, на основе которых создаются два контейнера:
-- `registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/scene:latest` - read-only образ, включающий сцену и робота в gazebo. Образ скачивается из реестра gitlab.
-- docker-образ для решения также является read-only и имеет два варианта:
-    - lite(легкий): `registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-lite:latest` -- Включает в себя базовые пакеты для работы с PointCloud и бибилиотеки машинного зрения 
-    - full(тяжелый): `registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-full[cuda|noncuda]:latest` -- Включает в себя расширенный набор библиотек, включая torch, ultralitics, onnx и тд.
+- scene: `registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/scene:latest` - read-only образ, включающий сцену и робота в gazebo. Образ скачивается из реестра gitlab.
+- solution: 
+    docker-образ для решения также является read-only и имеет два варианта:
+        - lite(легкий): `registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-lite:latest` -- Включает в себя базовые пакеты для работы с PointCloud и бибилиотеки машинного зрения 
+        - full(тяжелый): `registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-full[cuda|noncuda]:latest` -- Включает в себя расширенный набор библиотек, включая torch, ultralitics, onnx и тд.
 
 Участникам предоставляется шаблон с реализованными базовыми функциями чтения данных и управления в виде ROS-пакета `solution_bachelor`, который содержит код на C++ и на Python. Модифицируя его участникам предлагается решить задание.
 
