@@ -52,29 +52,27 @@
 
 
 
-## Как все работает
-Доступны два docker-образа:
-
-- `registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/scene:latest` - read-only образ, включающий сцену и робота в gazebo. Образ скачивается из реестра gitlab.
-- Докер образ решения имеет два варианта:
-    - lite(легкий): `registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-lite:latest`
-        Включает в себя базовые пакеты для работы с PointCloud и бибилиотеки машинного зрения 
-    - full(тяжелый): `registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-full[cuda|noncuda]:latest`
-        Включает в себя расширенный набор бибилиотек, включая torch, ultralitics, onnx и тд.
-
-![Profi scheme](docs/figures/profi-scheme.png)
-
+## Структура ROS-пакета и окружения
 
 Для запуска docker-контейнеров используется инструмент docker-compose. Описание параметров запуска доступно в этом репозитории в файлах:
 
 - `docker-compose.yaml ` - если у вас **нет** видеокарты *Nvidia*.
 - `docker-compose.nvidia.yaml `. - если у вас есть видеокарта от *Nvidia*.
 
-Участникам предоставляется шаблон с реализованными базовыми функциями чтения данных и управления виде ROS-пакета `solution_bachelor`, который содержит код на C++ и на Python. Модифицируя его участникам предлагается решить задание.
+**[Важно!]** Модифицирование `docker-compose` файлов вне предложенных инструкций может привести к тому, что решение не будет запущено корректно при тестировании. Остальные файлы разрешается редактировать как угодно.
+
+![Profi scheme](docs/figures/profi-scheme.png)
+
+Доступны два docker-образа, на основе которых создаются два контейнера:
+- `registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/scene:latest` - read-only образ, включающий сцену и робота в gazebo. Образ скачивается из реестра gitlab.
+- docker-образ для решения также является read-only и имеет два варианта:
+    - lite(легкий): `registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-lite:latest` -- Включает в себя базовые пакеты для работы с PointCloud и бибилиотеки машинного зрения 
+    - full(тяжелый): `registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-full[cuda|noncuda]:latest` -- Включает в себя расширенный набор библиотек, включая torch, ultralitics, onnx и тд.
+
+Участникам предоставляется шаблон с реализованными базовыми функциями чтения данных и управления в виде ROS-пакета `solution_bachelor`, который содержит код на C++ и на Python. Модифицируя его участникам предлагается решить задание.
 
 **[Важно!]** По умолчанию `start.launch.py` запускает код на Python, чтобы писать код на C++ расскомментируйте и закомментируйте соответствующие строчки в `start.launch.py`.
 
-**[Важно!]** Модифицирование `docker-compose` файлов вне предложенных инструкций может привести к тому, что решение не будет запущено корректно при тестировании. Остальные файлы разрешается редактировать как угодно.
 
 ### Ручное управление автомобилем
 
