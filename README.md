@@ -1,93 +1,115 @@
-# bachelor
+# Задание полуфинала олимпиады "Я - профессионал" 2024-2025 по робототехнике. Бакалавриат
+[![Telegram](https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/iprofirobots)    [![Yandex IProfi](https://img.shields.io/badge/yandex-%23FF0000.svg?&style=for-the-badge&logo=yandex&logoColor=white)](https://yandex.ru/profi/profile/?page=contests)  [![Mail](https://custom-icon-badges.demolab.com/badge/-iprofi.robotics@yandex.ru-red?style=for-the-badge&logo=mention&logoColor=white)](mailto:iprofi.robotics@yandex.ru)
+
+
+---
+![scene pic](docs/figures/scene_view.png)
+
+---
+
+Репозиторий содержит ROS-пакет `solution_bachelor` с минимальным *решением* задачи. Участнику следует, модифицируя этот пакет, решить задачу.
+
+## Задача
+
+В симуляции предоставляется зацикленный участок автомобильной дороги общего пользования и модель беспилотного транспортного средства для которой участникам предлагается реализовать алгоритм управления, позволяющий за ограниченное время проехать как можно больший путь.
+
+Для управления моделью беспилотного транспортного средства доступны воздействие на поворот рулевого колеса, торможение и ускорение.
+В состав доступной бортовой сенсорики модели беспилотного транспортного средства входят rgbd-камера и GNSS-RTK.
+
+
+## Установка и настройка окружения
+Для настройки окружения необходимо иметь одну из перечисленных операционных систем:
+1. Ubuntu 20.04 или 22.04
+2. Windows 10 и старше, с установленным WSL (Не рекомендуется).
+
+Для подготовки окружения необходимо сделать следующее:
+1. Установить docker-engine: [Docker Engine](https://docs.docker.com/engine/install/ubuntu/).  
+2. Также необходимо установить docker-compose-plugin: [Docker Compose](https://docs.docker.com/compose/install/linux/).  
+3. Если вы планируете использовать видеокарту, установите также nvidia-container-toolkit: [Nvidia Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+
+
+## Первый запуск
+1. **[Важно!]** Сделайте **fork** этого репозитория.
+2. Склонируйте fork репозитория в рабочую директорию:
+        git clone https://gitlab.com/{my-username}/bachelor.git
+        cd bachelor
+
+3. **[Важно!]** Перед запуском на Linux выполните следующую команду:
+
+        xhost +local:docker
+
+4. Для запуска сцены и этого пакета используйте команду:
+
+        docker compose -f docker-compose.yaml up
+
+    Для получения последней версии сцены(обновления), используейте флаг `--pull always`:
+
+        docker compose -f docker-compose.yaml up --build --pull always
 
 
 
-## Getting started
+## Как все работает
+Доступны два docker-образа:
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+- `registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/scene:latest` - read-only образ, включающий сцену и робота в gazebo. Образ скачивается из реестра gitlab.
+- Докер образ решения имеет два варианта:
+    - lite(легкий): `registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-lite:latest`
+        Включает в себя базовые пакеты для работы с PointCloud и бибилиотеки машинного зрения 
+    - full(тяжелый): `registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-full[cuda|noncuda]:latest`
+        Включает в себя расширенный набор бибилиотек, включая torch, ultralitics, onnx и тд.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+![Profi scheme](docs/figures/profi-scheme.png)
 
-## Add your files
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+Для запуска docker-контейнеров используется инструмент docker-compose. Описание параметров запуска доступно в этом репозитории в файлах:
 
-```
-cd existing_repo
-git remote add origin https://gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor.git
-git branch -M main
-git push -uf origin main
-```
+- `docker-compose.yaml ` - если у вас **нет** видеокарты *Nvidia*.
+- `docker-compose.nvidia.yaml `. - если у вас есть видеокарта от *Nvidia*.
 
-## Integrate with your tools
+Участникам предоставляется шаблон с реализованными базовыми функциями чтения данных и управления виде ROS-пакета `solution_bachelor`. Модифицируя его участникам предлагается решить задание. 
+**[Важно!]** Модифицирование `docker-compose` файлов вне предложенных инструкций может привести к тому, что решение не будет запущено корректно при тестировании. Остальные файлы разрешается редактировать как угодно.
 
-- [ ] [Set up project integrations](https://gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/-/settings/integrations)
+### Ручное управление автомобилем
 
-## Collaborate with your team
+Иногда для удобство удобно в ручную поуправлять автомобилем. Для ручного телеуправления можно запустить управление с клавиатуры:
+    
+    ros2 run teleop_twist_keyboard teleop_twist_keyboard
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+Для `teleop_twist_keyboard` лицейная скорость используется как процент от максимального момента на ведущих (задних) колесах. Угловая скорость как
+угол поворота колес в радианах (макс. 0.6).
 
-## Test and Deploy
+В таком режиме:
+- Клавишами `I-K-M` активируется газ-тормоз-назад. Уровень момента на колесах задается клавишами: `w-x`
+- Клавишами `J-L` активируется поворот колес. Угол, на который поворачиваются колеса задается клавишами: `e-c`
 
-Use the built-in continuous integration in GitLab.
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+## Описание работы с docker-compose
 
-***
+В файле `docker-compose.yaml` хранится описание параметров запуска сцены и решения.
+Для выбора расширенного образа библиотек вам необходимо закомментировать следующую строчку в `docker-compose*.yaml` файле:
 
-# Editing this README
+    image: registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-lite:latest
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+и раскомментировать следующую:
 
-## Suggestions for a good README
+    image: registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-full[cuda|noncuda]:latest
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
 
-## Name
-Choose a self-explaining name for your project.
+### Автозапуск решения
+По умолчанию для решения **автоматически** запускается `start.launch`.
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+    ros2 launch solution_bachelor start.launch
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+Вы можете убрать автозапуск решения и делать это вручную, для этого раскомментируйте следующую строчку в `docker-compose*.yaml` файле:
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+    # command: /bin/bash # Раскомментируй для ручного запуска
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+После этого чтобы подключиться к контейнеру или открыть больше терминалов в docker контейнере решения необходимо ввести:
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+    docker compose exec solution bash
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+## Быстрый перезапуск решения
+Если используется **автозапуск** решения. Для быстрого изменения и пересборки отредактируйте необходимые файлы и в соседней вкладке перезапустите сервис решения с помощью команды:
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+    docker compose restart solution

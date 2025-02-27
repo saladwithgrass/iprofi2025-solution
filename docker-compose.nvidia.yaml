@@ -1,0 +1,64 @@
+version: '3.9'
+name: 'bachelor_problem'
+
+services:
+  scene:
+    image: registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/scene:latest
+    container_name: scene_bachelor_problem
+    environment:
+      - DISPLAY
+      - XAUTORITY
+      - QT_X11_NO_MITSHM=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    ipc: host
+    stdin_open: true
+    tty: true
+    networks:
+      - general
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /etc/localtime:/etc/localtime:ro
+      - /dev:/dev
+
+  solution:
+    image: registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-lite:latest # Закомментируй меня если почувтсовал силу
+    # image: registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-full-cuda:latest # Расскомментируйте для использования расширенного образа
+    container_name: solution_bachelor_problem
+    # command: /bin/bash # Раскомментируй для ручного запуска
+    stdin_open: true
+    tty: true
+    environment:
+      - ROS_MASTER_URI=http://scene:11311
+      - DISPLAY
+      - XAUTORITY
+      - QT_X11_NO_MITSHM=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    depends_on: 
+      scene:
+        condition: service_healthy
+    networks:
+      - general
+    ipc: host
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /etc/localtime:/etc/localtime:ro
+      - /dev:/dev
+      - ./:/ros_ws/src/solution_packages
+
+networks:
+  general:
+    attachable: true
+    internal: false
+    driver: bridge
