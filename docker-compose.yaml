@@ -22,7 +22,7 @@ services:
       - /dev:/dev
 
   solution:
-    image: registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-lite:latest # Закомментируй меня если почувтсовал силу
+    image: registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-lite:latest # Закомментируй меня если почувствовал силу
     # image: registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-full-noncuda:latest # Расскомментируйте для использования расширенного образа
     container_name: solution_bachelor_problem
     # command: /bin/bash # Раскомментируй для ручного запуска
