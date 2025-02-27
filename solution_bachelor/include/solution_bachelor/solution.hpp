@@ -1,3 +1,5 @@
+#pragma once
+
 #include <solution.hpp>
 
 #include <memory>
@@ -21,7 +23,7 @@ public:
     void gpsCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
     void pointsCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
     void moveCallback();
-    void finishControl()
+    void finishControl();
 
 private:
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
@@ -34,6 +36,8 @@ private:
     double init_time_sec_;
     double finish_time_;
     bool simulation_started_;
+
+    bool gui_;
 };
 
 int main(int argc, char **argv)

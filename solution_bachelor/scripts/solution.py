@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
+import os
 
 import rclpy
 from rclpy.node import Node
@@ -18,7 +19,10 @@ class SimpleMover(Node):
 
     def __init__(self, rate = 60):
         super().__init__('solution')
-        self.get_logger().info("...solution node started ..................")
+        self.get_logger().info("...solution node started2 ..................")
+
+        self.gui = os.getenv('GUI')=='true' or os.getenv('GUI')=='True'
+
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         
         self.create_subscription(Image, '/camera/image_raw', self.camera_cb, 10)
@@ -42,9 +46,10 @@ class SimpleMover(Node):
             cv_image = self.cv_bridge.imgmsg_to_cv2(msg, "bgr8")
             height, width, channels = cv_image.shape # выводим размер изображения в логи
             self.get_logger().info(f"Image received: {width}x{height}, channels: {channels}")
+            if self.gui != False:
+                cv2.imshow("output", cv_image)
+                cv2.waitKey(1)
 
-            cv2.imshow("Camera", cv_image) # вывод в отдельном окне
-            cv2.waitKey(1)
 
         except CvBridgeError as e:
             self.get_logger().error(f"cv_bridge error: {e}")
@@ -53,7 +58,7 @@ class SimpleMover(Node):
         self.get_logger().info(f"The position of robot is: {msg.pose.pose.position.x}, {msg.pose.pose.position.y}")
 
     def points_cb(self, msg):
-        self.get_logger().info(f"The points: {msg.data} ")
+        self.get_logger().info(f"Points was received")
 
     def move(self):
         # Control algorithm
@@ -68,8 +73,8 @@ class SimpleMover(Node):
                     msg.linear.x = 2.6 # Момент на колеса в % от максимального (вдоль оси Х) 
                     msg.angular.z = 0.1 # Угол поворота колеса (вокруг оси Z)
                 else:
-                    msg.linear.x = 0
-                    msg.angular.z = 0
+                    msg.linear.x = 0.0
+                    msg.angular.z = 0.0
                 
                 self.cmd_vel_pub.publish(msg)
                 self.get_logger().info("moving..!")

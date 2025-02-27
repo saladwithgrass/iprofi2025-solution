@@ -9,6 +9,8 @@ services:
       - DISPLAY
       - XAUTORITY
       - QT_X11_NO_MITSHM=1
+      - RVIZ_GUI=true
+      - GAZEBO_GUI=true
     deploy:
       resources:
         reservations:
@@ -27,17 +29,17 @@ services:
       - /dev:/dev
 
   solution:
-    image: registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-lite:latest # Закомментируй меня если почувтсовал силу
+    image: registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-lite:latest # Закомментируй меня если почувствовал силу
     # image: registry.gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor/user-full-cuda:latest # Расскомментируйте для использования расширенного образа
     container_name: solution_bachelor_problem
     # command: /bin/bash # Раскомментируй для ручного запуска
     stdin_open: true
     tty: true
     environment:
-      - ROS_MASTER_URI=http://scene:11311
       - DISPLAY
       - XAUTORITY
       - QT_X11_NO_MITSHM=1
+      - GUI=true
     deploy:
       resources:
         reservations:

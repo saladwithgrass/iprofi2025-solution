@@ -5,17 +5,22 @@ project(solution_bachelor)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)  # For C++ nodes
 find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(cv_bridge REQUIRED)
 
 find_package(rclpy REQUIRED)   # For Python nodes
 
 # Include directories
-include_directories(include)
+include_directories(include/${PROJECT_NAME})
+include_directories(${OpenCV_INCLUDE_DIRS})
 
 # Declare a C++ executable
 add_executable(solution_node src/solution.cpp)
 
 # Link libraries
-ament_target_dependencies(solution_node rclcpp std_msgs)
+ament_target_dependencies(solution_node rclcpp std_msgs sensor_msgs nav_msgs OpenCV cv_bridge)
 
 # Install executables
 install(TARGETS solution_node

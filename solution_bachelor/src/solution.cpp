@@ -1,5 +1,3 @@
-#pragma once
-
 #include <memory>
 #include <chrono>
 
@@ -14,7 +12,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <solution.hpp>
 
-SimpleMover::SimpleMover(double rate = 60.0): Node("solution"), rate_(rate){
+SimpleMover::SimpleMover(double rate ): Node("solution"), rate_(rate){
     RCLCPP_INFO(this->get_logger(), "solution node started...");
 
     // Паблишер для управления (cmd_vel)
@@ -42,6 +40,8 @@ SimpleMover::SimpleMover(double rate = 60.0): Node("solution"), rate_(rate){
     init_time_sec_ = this->get_clock()->now().nanoseconds() / 1e9;
     finish_time_ = 10 * 60; // Продолжительность работы: 10 минут
     simulation_started_ = false;
+    char const* gui_param = std::getenv("GUI");
+    gui_ = (std::string(gui_param) == "True" || std::string(gui_param) == "true" );
 
     auto timer_period = std::chrono::duration<double>(1.0 / rate_);
     timer_ = this->create_wall_timer(
@@ -52,23 +52,25 @@ SimpleMover::SimpleMover(double rate = 60.0): Node("solution"), rate_(rate){
 
 void SimpleMover::cameraCallback(const sensor_msgs::msg::Image::SharedPtr msg){
     try{
-      // Конвертация ROS-сообщения в cv::Mat (формат BGR8)
-      cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
-      cv::Mat cv_image = cv_ptr->image;
+        // Конвертация ROS-сообщения в cv::Mat (формат BGR8)
+        cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
+        cv::Mat cv_image = cv_ptr->image;
 
-      int height = cv_image.rows;
-      int width = cv_image.cols;
-      int channels = cv_image.channels();
+        int height = cv_image.rows;
+        int width = cv_image.cols;
+        int channels = cv_image.channels();
 
-      RCLCPP_INFO(this->get_logger(), "Image received: %dx%d, channels: %d", width, height, channels);
-
-      // Вывод изображения в окно OpenCV
-      cv::imshow("Camera", cv_image);
-      cv::waitKey(1);
+        RCLCPP_INFO(this->get_logger(), "Image received: %dx%d, channels: %d", width, height, channels);
+        
+        if(gui_){
+            // Вывод изображения в окно OpenCV
+            cv::imshow("Camera", cv_image);
+            cv::waitKey(1);
+        }
     }
     catch (cv_bridge::Exception &e)
     {
-      RCLCPP_ERROR(this->get_logger(), "cv_bridge error: %s", e.what());
+        RCLCPP_ERROR(this->get_logger(), "cv_bridge error: %s", e.what());
     }
 }
 
@@ -115,7 +117,7 @@ void SimpleMover::moveCallback(){
     }
 }
 
-void SimpleMover:finishControl()
+void SimpleMover::finishControl()
 {
     RCLCPP_INFO(this->get_logger(), "Controller stopped");
     timer_->cancel();
