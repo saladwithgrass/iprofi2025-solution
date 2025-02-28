@@ -1,0 +1,6 @@
+1) split all points into segments based on delta_angle
+2) split each segment into B bins
+3) for each bin, calculate mappings - 2d vectors containing radial distance and height
+4) calculate prototype points for each bin in each segment based on the lowest point 
+5) fit a line through prototype points in a segment (this line is ground)
+6) based on vertical distance from point to that line, select non-ground points

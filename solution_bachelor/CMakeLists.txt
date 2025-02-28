@@ -40,7 +40,6 @@ install(TARGETS solution_node
 # Install Python scripts
 install(PROGRAMS
   scripts/control_scheduler.py
-  scripts/solution.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
