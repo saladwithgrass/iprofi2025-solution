@@ -33,7 +33,7 @@ class SimpleMover(Node):
 
         self.rate = rate # Hz
         self.init_time_sec = self.get_clock().now().nanoseconds / 1e9
-        self.finish_time = 6*60 # ride duration seconds
+        self.finish_time = 10*60 # Продолжительность работы: 10 минут
 
         timer_period = 1.0 / float(self.rate)
         self.timer = self.create_timer(timer_period, self.move)
