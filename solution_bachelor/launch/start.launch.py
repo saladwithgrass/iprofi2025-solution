@@ -5,9 +5,9 @@ def generate_launch_description():
     return launch.LaunchDescription([
         launch_ros.actions.Node(
             package='solution_bachelor',
-            executable='solution.py',  # Python script
+            executable='control_scheduler.py',  # Python script
             # executable='solution_node',  # C++ program
-            name='solution_node',
+            name='control_scheduler',
             output='screen'
         )
     ])

@@ -4,13 +4,23 @@ project(solution_bachelor)
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)  # For C++ nodes
+find_package(rclpy REQUIRED)   # For Python nodes
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(cv_bridge REQUIRED)
 
-find_package(rclpy REQUIRED)   # For Python nodes
+# for my msgs
+find_package(geometry_msgs REQUIRED)
+find_package(rosidl_default_generators REQUIRED) # for custom msgs
+
+# add my message
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/TwistStampedArray.msg"
+  DEPENDENCIES geometry_msgs # Add packages that above messages depend on, in this case geometry_msgs for Sphere.msg
+)
+
 
 # Include directories
 include_directories(include/${PROJECT_NAME})
@@ -29,6 +39,7 @@ install(TARGETS solution_node
 
 # Install Python scripts
 install(PROGRAMS
+  scripts/control_scheduler.py
   scripts/solution.py
   DESTINATION lib/${PROJECT_NAME}
 )
@@ -44,4 +55,5 @@ if(BUILD_TESTING)
 endif()
 
 # ament package export
+ament_export_dependencies(rosidl_default_runtime)
 ament_package()
