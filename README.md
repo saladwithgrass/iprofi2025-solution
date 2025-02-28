@@ -33,12 +33,13 @@
 
 
 ## Первый запуск
-1. **[Важно!]** Сделайте **fork** этого репозитория.
+1. **[Важно!]** Сделайте **fork** этого репозитория ([как сделать форк](https://docs.gitlab.com/ee/user/project/repository/forking_workflow.html)) или **импорт**([как сделать импорт](https://docs.github.com/en/migrations/importing-source-code/using-github-importer/importing-a-repository-with-github-importer)) в случае использования Github.  
+Установить параметр видмости вашего репозитория: **Private**. 
 2. Склонируйте fork репозитория в рабочую директорию:
         git clone https://gitlab.com/{my-username}/bachelor.git
         cd bachelor
 
-3. **[Важно!]** Перед запуском на Linux выполните следующую команду:
+3. **[Важно!]** Перед запуском на Linux необходимо дать права для подключения группе docker к дисплею хоста, для этого выполните следующую команду:
 
         xhost +local:docker
 
@@ -63,6 +64,11 @@
 
 - `docker-compose.yaml ` - если у вас **нет** видеокарты *Nvidia*;
 - `docker-compose.nvidia.yaml ` - если у вас есть видеокарта от *Nvidia* и установлен драйвер.
+
+Запуск включает два шага:
+- В контейнере сервиса `scene` на основе образа `[scene]` запускается сцена в симуляторе gazebo [scene_bachelor](https://gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor_env).
+- В контейнере сервиса `solution` на основе образа `[base]` запускается решение [solution_bachelor](https://gitlab.com/roboforces-itmo/open-tasks/iprofi2025/problem/bachelor).
+
 
 **[Важно!]** Модифицирование `docker-compose` файлов вне предложенных инструкций может привести к тому, что решение не будет запущено корректно при тестировании. Остальные файлы разрешается редактировать как угодно.
 
@@ -113,6 +119,10 @@
 Иногда хочется перзапустить сцену, в таком случае используйте:
 
     docker compose restart scene
+
+###  Включение/выключение Rviz
+
+При необходимости вы можете отключить Rviz, для этого необходимо использовать флаги `RVIZ_GUI=true` или `RVIZ_GUI=false`, внутри файлов `docker-compose.yml`/`docker-compose.nvidia.yml` или при вызове запуска.
 
 
 ## Ручное управление автомобилем
