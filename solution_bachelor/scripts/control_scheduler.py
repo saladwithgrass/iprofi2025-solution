@@ -45,6 +45,7 @@ class ControlScheduler(Node):
         # list of current scheduled controls
         self.scheduled_controls:list[TwistStamped] = []
         
+        print(self.time())
         self.log('CONTROL SCHEDULER READY')
 
     def time(self) -> float:
