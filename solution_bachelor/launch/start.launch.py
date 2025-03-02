@@ -5,9 +5,16 @@ def generate_launch_description():
     return launch.LaunchDescription([
         launch_ros.actions.Node(
             package='solution_bachelor',
-            executable='control_scheduler.py',  # Python script
+            executable='mapper.py',  # Python script
             # executable='solution_node',  # C++ program
-            name='control_scheduler',
+            name='mapper',
+            output='screen'
+        ),
+        launch_ros.actions.Node(
+            package='solution_bachelor',
+            executable='lidar_v2.py',  # Python script
+            # executable='solution_node',  # C++ program
+            name='lidar',
             output='screen'
         )
     ])

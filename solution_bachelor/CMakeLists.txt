@@ -39,7 +39,8 @@ install(TARGETS solution_node
 
 # Install Python scripts
 install(PROGRAMS
-  scripts/control_scheduler.py
+  scripts/lidar_v2.py
+  scripts/mapper.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

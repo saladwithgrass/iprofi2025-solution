@@ -9,10 +9,10 @@ from utils import parse_odometry, time_to_sec
 class PIDController():
     def __init__(
             self, 
-            target_vel=1,
-            Kp=1.,
-            Ki=1.,
-            Kd=1.
+            target_vel,
+            Kp,
+            Ki,
+            Kd
             ):
 
         self.target_speed = target_vel
@@ -25,7 +25,41 @@ class PIDController():
         self.error_derivative = 0
         self.prev_error = 0
 
+    def two_var_update(self, cur_vel, dt):
+        print('cur: ', cur_vel[1])
+        print('target: ', self.target_speed)
+
+        # save previous state
+        self.prev_error = self.error
+
+        # update new error
+        error = self.target_speed - cur_vel[0]
+        # error += np.abs(cur_vel[1])
+        self.error = error
+
+        # construct proportional part
+        P = self.error * self.Kp
+
+        # update integral
+        self.error_integral += error * dt
+        I = self.Ki * self.error_integral
+
+        # update derivative
+        self.error_derivative = (self.prev_error - error) / dt
+        D = self.Kd * self.error_derivative
+
+        # combine all parts
+        output = P + I + D
+        # clip to make sure it is in range
+        output = np.clip(output, -100, 100)
+        print('control: ', output)
+        print('--------')
+
+        return output
+
     def update(self, cur_speed:float, dt:float):
+        print('cur: ', cur_speed)
+        print('target: ', self.target_speed)
 
         # save previous state
         self.prev_error = self.error
@@ -49,13 +83,28 @@ class PIDController():
         output = P + I + D
         # clip to make sure it is in range
         output = np.clip(output, -100, 100)
+        print('control: ', output)
+        print('--------')
 
         return output
 
 class ROSPIDController(Node, PIDController):
 
-    def __init__(self):
-        super(Node).__init__('pid_controller')
+    def __init__(
+            self,
+            target_vel=3,
+            Kp=80,
+            Ki=0.01,
+            Kd=0.01
+            ):
+        Node.__init__(self, 'pid_controller')
+        PIDController.__init__(
+            self, 
+            target_vel=target_vel,
+            Kp=Kp,
+            Kd=Kd,
+            Ki=Ki
+            )
 
         # create publisher to throttle cmd 
         self.cmd_pub = self.create_publisher(
@@ -72,23 +121,49 @@ class ROSPIDController(Node, PIDController):
             qos_profile=10
         )
 
-        self.get_logger().log('WAITING TO INIT')
+        # listen for targe speed
+        self.target_sub = self.create_subscription(
+            msg_type=Float64,
+            topic='/target_vel',
+            callback=self.target_callback,
+            qos_profile=10
+        )
+
+        self.get_logger().info('WAITING TO INIT')
         self.is_initialized = False
         self.last_callback_time = 0
-        while not self.is_initialized:
-            ros.spin_once(self)
+        
 
+    def time(self):
+        return self.get_clock().now().nanoseconds / 1e9
+
+    def target_callback(self, msg:Float64):
+        self.target_speed = float(msg.data)
 
     def odom_callback(self, msg:Odometry):
         if not self.is_initialized:
             self.is_initialized = True
-            self.last_callback_time = time_to_sec(msg.header.stamp)
+            self.last_callback_time = self.time()
+            self.get_logger().info('INIT COMPLETE')
             return
         
-        pos, rot, vel, time = parse_odometry(Odometry)
+        time = self.time()
+        pos, rot, vel = parse_odometry(msg)
 
         control = self.update(vel[0], time - self.last_callback_time)
-        self.get_logger().log('publishing control: ', control)
+        # self.get_logger().info(f'publishing control: {control}')
         self.last_callback_time = time
-        self.cmd_pub.publish(Float64(control))
+        self.cmd_pub.publish(Float64(data=control))
+
+def main():
+    ros.init()
+    pid = ROSPIDController(
+        Kd=0.5,
+        target_vel=1.5
+    )
+    ros.spin(pid)
+    ros.shutdown()
+
+if __name__ == '__main__':
+    main()
         

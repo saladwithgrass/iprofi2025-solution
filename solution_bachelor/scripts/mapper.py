@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import rclpy as ros
 import cv2
 from rclpy.node import Node

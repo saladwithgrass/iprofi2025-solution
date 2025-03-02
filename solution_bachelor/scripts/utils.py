@@ -86,6 +86,10 @@ def interpolate_points(points, n_steps=100, smoothing=3.):
     interp_z = splines[2](smooth_len)
     return np.vstack((interp_x, interp_y, interp_z)).T
 
+def remap_value(val, min_1, max_1, min_2, max_2):
+    percent = (val - min_1) / (max_1 - min_1)
+    return min_2 + percent * (max_2 - min_2)
+
 def parse_odometry(msg:Odometry):
     """Returns Position as Pose2d, Rotation in RPY as Pose2d and Velocity as Pose2d
     """
@@ -204,7 +208,7 @@ def load_grid(msg:OccupancyGrid):
     data.resize((height, width))
     return data, resolution, origin
 
-def marker_msg(coord):
+def marker_msg(coord, frame_id='odom'):
     msg = Marker()
 
     msg.type = 1
@@ -218,10 +222,13 @@ def marker_msg(coord):
     msg.scale.y = 1.
     msg.scale.z = 1.
 
-    msg.pose.position.x = coord[0]
-    msg.pose.position.y = coord[1]
-    msg.pose.position.z = 1.
+    msg.pose.position.x = float(coord[0])
+    msg.pose.position.y = float(coord[1])
+    if len(coord) == 3:
+        msg.pose.position.z = coord[2]
+    else:
+        msg.pose.position.z = 1.
 
-    msg.header.frame_id = 'odom'
+    msg.header.frame_id = frame_id
     
     return msg
