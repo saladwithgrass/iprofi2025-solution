@@ -43,7 +43,7 @@ install(PROGRAMS
   scripts/mapper.py
   scripts/director.py
   scripts/pid_controller.py
-  scripts/control_cummator.py
+  scripts/control_summator.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
