@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import rclpy as ros
 from rclpy.node import Node
 from std_msgs.msg import Float64

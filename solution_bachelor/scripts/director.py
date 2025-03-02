@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import numpy as np
 from numpy import sin, cos
 from scipy.spatial.transform import Rotation as R

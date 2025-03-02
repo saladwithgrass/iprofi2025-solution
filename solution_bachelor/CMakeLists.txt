@@ -41,6 +41,9 @@ install(TARGETS solution_node
 install(PROGRAMS
   scripts/lidar_v2.py
   scripts/mapper.py
+  scripts/director.py
+  scripts/pid_controller.py
+  scripts/control_cummator.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
