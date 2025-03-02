@@ -73,6 +73,7 @@ class Director(Node, PurePursuitController):
 
         self.steering_angle = 0
         self.base_target_vel = 2.5
+        self.stuck_counter = 0
 
         self.hist_keeper = HistoryKeeper()
 
@@ -183,6 +184,21 @@ class Director(Node, PurePursuitController):
 
         # load position, rotation and velocity
         pos, rot, vel, _ = self.hist_keeper.find_closest_time(time) 
+
+        # check if car has been moving recently
+        if abs(vel[0]) < 0.1 or self.stuck_counter > 0:
+            recent_vels = self.hist_keeper.get_latest_n_data(100, True)
+            recent_vels = np.linalg.norm(recent_vels, axis=1)
+            weights = np.exp(np.linspace(1, 0, len(recent_vels)))
+            avg = np.average(recent_vels, weights=weights)
+            if avg < 0.2 or self.stuck_counter > 0:
+                if self.stuck_counter == 0:
+                    self.stuck_counter = 10
+                self.stuck_counter -= 1
+                self.get_logger().warning('IM STUCK')
+                self.publish_angle_control(-self.steering_angle)
+                self.publish_target_velocity(-1.5)
+                return
 
         # adjust lookahead
         self.lookahead = self.min_lookahead + np.abs(vel[0] * 0.5)

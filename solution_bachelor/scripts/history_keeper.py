@@ -23,6 +23,22 @@ class HistoryKeeper():
             np.array(self.time_hist[min_idx]),
         )
 
+    def get_n_th_pos(self, n):
+        return np.array(self.pos_hist[n])
+
+    def get_latest_n_pos(self, n):
+        return np.array(self.pos_hist[:n])
+
+    def get_latest_n_data(self, n, vel_only=False):
+        if vel_only:
+            return np.array(self.vel_hist[:n])
+        return (
+            np.array(self.pos_hist[:n]),
+            np.array(self.rot_hist[:n]),
+            np.array(self.vel_hist[:n]),
+            np.array(self.time_hist[:n]),
+        )
+
     def update(self, pos, rot, vel, time):
         self.pos_hist[1:] = self.pos_hist[:-1]
         self.pos_hist[0] = pos
