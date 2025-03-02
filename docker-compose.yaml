@@ -9,7 +9,7 @@ services:
       - DISPLAY
       - XAUTORITY
       - QT_X11_NO_MITSHM=1
-      - RVIZ_GUI=true
+      - RVIZ_GUI=false
       - GAZEBO_GUI=false
     ipc: host
     stdin_open: true
