@@ -168,12 +168,15 @@ class Director(Node, PurePursuitController):
         reduction_coeff = 1 - reduction_percent
         return -np.sign(slip_angle) * 0.6, -self.base_target_vel*reduction_coeff 
 
-    def deal_with_yaw_rate(self, yaw_rate):
-        if yaw_rate * self.steering_angle >= 0 and yaw_rate > 0.5:
+    def approximate_yaw_rate(self, fwd_vel):
+        return fwd_vel * self.steering_angle / self.wheelbase
+
+    def deal_with_yaw_rate(self, yaw_rate, vel):
+        if yaw_rate * self.steering_angle >= 0 and np.abs(self.approximate_yaw_rate(vel) - yaw_rate) < 0.5:
             return self.steering_angle, self.base_target_vel
         else:
             self.get_logger().info('countering wheel slip')
-            return -self.steering_angle / 0.6, -self.base_target_vel * 0.5
+            return -self.steering_angle * 1.2, -self.base_target_vel * 0.5
 
     def roi_callback(self, msg:OccupancyGrid):
         time = self.time()
@@ -226,12 +229,10 @@ class Director(Node, PurePursuitController):
         self.steering_angle = self.get_angle(cur_heading, point_local)
 
         # calculate slip angle
-        slip_angle = 0
+        new_vel = self.base_target_vel
         if np.linalg.norm(vel) > 0.5:
-            slip_angle = -np.arctan(vel[1] / abs(vel[0]))
-
-        new_steer, new_vel = self.deal_with_yaw_rate(vel[2])
-        self.steering_angle = new_steer
+            new_steer, new_vel = self.deal_with_yaw_rate(vel[2], vel[0])
+            self.steering_angle = new_steer
 
         self.publish_target_velocity(new_vel)
         self.publish_angle_control(self.steering_angle)
