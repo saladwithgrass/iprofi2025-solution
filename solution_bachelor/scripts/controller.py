@@ -99,6 +99,7 @@ class Controller(Node):
             qos_profile=10
         )
 
+        return 
         self.init_time = self.get_clock().now().nanoseconds / 1e9
         self.is_accel_initialized = False
         self.is_vel_intialized = False

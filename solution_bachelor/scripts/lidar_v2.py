@@ -1,4 +1,5 @@
 import rclpy as ros
+import matplotlib.pyplot as plt
 import cv2
 import numpy as np
 import open3d as o3d
@@ -14,7 +15,7 @@ from skimage.measure import ransac
 from scipy.spatial.transform import Rotation as R
 from scipy.spatial import KDTree
 
-from utils import point_cloud, sec_to_time, time_to_sec
+from utils import point_cloud, sec_to_time, time_to_sec, ROAD_WIDTH
 
 class Lidar(Node):
 
@@ -53,12 +54,21 @@ class Lidar(Node):
         # publisher for processed points
         self.groud_pub = self.create_publisher(
             msg_type=PointCloud2,
-            topic='/processed_points',
+            topic='/road_points',
             qos_profile=10
         )
 
     def time(self):
         return self.get_clock().now().nanoseconds / 1e9
+
+    def remove_nan_vecs(self, points):
+        good_points = np.prod(np.isfinite(points), axis=1, dtype=bool)
+        return points[good_points]
+
+    def create_pcd(self, points_3d):
+        o3d_pcd = o3d.geometry.PointCloud()
+        o3d_pcd.points = o3d.utility.Vector3dVector(self.remove_nan_vecs(points_3d))
+        return o3d_pcd
 
     def convert_points_to_camera(self, points):
         return self.rotation.apply(points) + self.position
@@ -72,7 +82,7 @@ class Lidar(Node):
         [a, b, c, d] = plane_model
         return plane_model, inliers
    
-    def downsample_pointcloud(self, pcd:o3d.geometry.PointCloud, voxel_size=0.1):
+    def downsample_pointcloud(self, pcd, voxel_size=0.1):
         downsampled_pcd = pcd.voxel_down_sample(voxel_size=voxel_size)
         return downsampled_pcd
 
@@ -100,7 +110,7 @@ class Lidar(Node):
             dtype=np.uint8
             ).reshape((480, 640, 3))
 
-    def extract_road_by_color(self, color_data):
+    def extract_road_image_by_color(self, color_data):
         """
         Return image where the parts that are most probable to be the road are white.
         """
@@ -121,6 +131,16 @@ class Lidar(Node):
         # dilated_hue = cv2.GaussianBlur(dilated_hue, ksize=(155,155),sigmaX=10)
         dilated_hue = cv2.bitwise_not(dilated_hue)
         return dilated_hue
+
+    def extract_road_by_color(self, colors, points_3d):
+        road_image = self.extract_road_image_by_color(colors)
+        road_image = road_image.flatten()
+ 
+        points_3d = points_3d[road_image > 0]
+        return points_3d
+        pcd = self.create_pcd(points_3d)
+        pcd = self.downsample_pointcloud(pcd, 1)
+        return np.asarray(pcd.points)
 
     def extract_road_contours(self, image):
         thresholded = cv2.adaptiveThreshold(
@@ -159,20 +179,8 @@ class Lidar(Node):
             return contoured
 
         return thresholded
-
-    def rgbd_callback(self, msg:PointCloud2):
-        time = self.time()
-        # convert point to numpy
-        point_data = read_points_numpy(msg, skip_nans=True)
-        # extract colors
-        colors = point_data[:, -1]
-        # extract 3d points
-        points_3d = point_data[:, :3]
-
-        # convert to camera pos
-        points_3d[:, :3] = self.convert_points_to_camera(points_3d[:, :3])
-        colors = self.get_colored_image(colors)
-
+    
+    def extract_road_contour_by_color(self, points_3d, colors):
         road_image = self.extract_road_by_color(colors)
         road_image = self.extract_road_contours(road_image)
 
@@ -185,37 +193,51 @@ class Lidar(Node):
         road_image = road_image.reshape((road_image.shape[0] * road_image.shape[1], 3)) / 255.
 
         # crop by height
+        # height_mask = points_3d[:, 2] < 3
         road_image = road_image[points_3d[:, 2] < 3]
         points_3d = points_3d[points_3d[:, 2] < 3]
 
         # crop by color selection
-        points_3d = points_3d[road_image[: , 0] > 0.5]
-        road_image = road_image[road_image[:, 0] > 0.5]
+        return points_3d[road_image[: , 0] > 0.5]
+        # road_image = road_image[road_image[:, 0] > 0.5]
 
+    def get_road_by_normals(self, points_3d):
         # init o3d objects
         o3d_pcd = o3d.geometry.PointCloud()
         o3d_pcd.points = o3d.utility.Vector3dVector(points_3d)
-        o3d_pcd.colors = o3d.utility.Vector3dVector(road_image)
 
         # downsample point cloud
         o3d_pcd = self.downsample_pointcloud(
             pcd=o3d_pcd,
             voxel_size=1
             )
+        ground_mask = self.estimate_ground_normals(o3d_pcd, 30)
+        return np.asarray(o3d_pcd.points)[ground_mask]
 
-        # estimate ground with normals
-        # ground_mask = self.estimate_ground_normals(o3d_pcd)
-        # downsampled_points = np.asarray(o3d_pcd.points)[ground_mask]
-        # downsampled_colors = np.asarray(o3d_pcd.colors)[ground_mask]
-        # color represents sureness by color
-        # remove points where sureness is low
-        # downsampled_points = downsampled_points[downsampled_colors[:, 0] > 0.5]
+    def rgbd_callback(self, msg:PointCloud2):
+        time = self.time()
+        # convert point to numpy
+        point_data = read_points_numpy(msg, skip_nans=False)
+        # good_points = np.prod(np.isfinite(point_data), axis=1, dtype=bool)    
+        # point_data = point_data[good_points]
 
-        cloud_msg = point_cloud(np.array(o3d_pcd.points), 'chassis')
+
+        # extract colors
+        colors = point_data[:, -1]
+        colors = self.get_colored_image(colors)
+        # extract 3d points
+    
+        points_3d = point_data[:, :3]
+        # convert to camera pos
+        points_3d[:, :3] = self.convert_points_to_camera(points_3d[:, :3])
+
+        selected_points = self.extract_road_by_color(colors, points_3d)
+        # selected_points = self.get_road_by_normals(points_3d)
+
+        cloud_msg = point_cloud(selected_points, 'chassis')
 
         cloud_msg.header.stamp = sec_to_time(time)
         self.groud_pub.publish(cloud_msg)
-
 
 def main():
     ros.init()

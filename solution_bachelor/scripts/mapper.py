@@ -1,204 +1,143 @@
 import rclpy as ros
-from rclpy.node import Node
-
-
-import std_msgs.msg as std_msgs
-import sensor_msgs.msg as sensor_msgs
-from sensor_msgs.msg import PointCloud2
-from sensor_msgs_py.point_cloud2 import read_points_numpy
-from nav_msgs.msg import Odometry
-
-import numpy as np
 import cv2
-from scipy.spatial import Delaunay
-from sklearn.decomposition import PCA
-from utils import parse_odometry, time_to_sec, point_cloud
+from rclpy.node import Node
+import numpy as np
+
+from utils import interpolate_points, parse_odometry, time_to_sec, ROAD_WIDTH
+from utils import occup_grid, points_to_map, points_from_map
+from history_keeper import HistoryKeeper
+
+from sensor_msgs.msg import PointCloud2
+from nav_msgs.msg import Odometry
+from sensor_msgs_py.point_cloud2 import read_points_numpy
+from nav_msgs.msg import OccupancyGrid
 
 class Mapper(Node):
-    def __init__(self):
 
+    def __init__(self):
         super().__init__('mapper')
 
-        # callback for odom
+        # listen for road center
+        self.road_sub = self.create_subscription(
+            msg_type=PointCloud2,
+            topic='/road_points',
+            qos_profile=1,
+            callback=self.center_callback
+        )
+
+        # listen for odom
         self.odom_sub = self.create_subscription(
             msg_type=Odometry,
             topic='/odom',
-            qos_profile=10,
-            callback=self.odom_callback
-        )
-
-        # lidar callback
-        self.lidar_sub = self.create_subscription(
-            msg_type=PointCloud2,
-            topic='/processed_points',
-            callback=self.lidar_callback,
+            callback=self.odom_callback,
             qos_profile=10
         )
 
-        # for debug only
-        self.pcd_pub = self.create_publisher(
-            msg_type=PointCloud2,
-            topic='/contour',
+        # publisher for roi
+        self.roi_pub = self.create_publisher(
+            msg_type=OccupancyGrid,
+            topic='/car_roi',
             qos_profile=10
         )
 
-        # history of poses
-        self.history_len = 200
-        self.pose_hist = np.zeros((self.history_len, 3), np.float32)
-        self.vel_hist = np.zeros((self.history_len, 3), np.float32)
-        self.time_hist = np.zeros((self.history_len, 3), np.float32)
+        self.hist_keeper = HistoryKeeper(100)
+
+
+        self.grid_size = 0.1 # m
+        self.map_height = 400
+        self.map_width = 400
+        self.offset_x = -self.map_height/2
+        self.offset_y = -self.map_width/2
+        self.roi = 40 # m
+        self.roi = int(self.roi / self.grid_size)
+        self.map_data = np.zeros(
+            (int(self.map_height / self.grid_size), int(self.map_width / self.grid_size))
+        )
 
     def time(self):
         return self.get_clock().now().nanoseconds / 1e9
 
-    def find_closest_time(self, time):
-        min_idx = np.argmin(np.abs(self.time_hist - time))
-        return self.pose_hist[min_idx] + 0., self.vel_hist[min_idx]+0., self.time_hist[min_idx]+0.
 
-    def extract_contour(self, points_2d:np.ndarray):
-        distance = 1.
+    def update_map(self, map_points):
+        map_points = map_points[map_points[:, 0] >= 0]
+        map_points = map_points[map_points[:, 0] < self.map_data.shape[0]]
+        map_points = map_points[map_points[:, 1] >= 0]
+        map_points = map_points[map_points[:, 1] < self.map_data.shape[1]]
+        for point in map_points:
+            if self.map_data[point[0], point[1]] < 255:
+                self.map_data[point[0], point[1]] += 1
 
-        # first, discard float part with some precision
-        precision = 0.2
-        distance /= precision
-        unfloated_points = points_2d / precision
-        unfloated_points = unfloated_points.astype(np.int32)
+    def erode_map(self):
+        ksize = int(ROAD_WIDTH * 0.75 / self.grid_size)
+        if ksize % 2 == 0:
+            ksize -= 1
+        eroded_map = cv2.erode(self.map_data, kernel=np.ones((ksize,ksize)))
+        return eroded_map
+    
+    def draw_car(self, zoom=False):
+        time = self.time()
+        pos, _, _, _ = self.hist_keeper.find_closest_time(time)
+        mapped_pos = points_to_map([pos], self.grid_size, [self.offset_x, self.offset_y])[0]
+        car_map = self.erode_map()
+        car_radius = 40
+        padding = 50
+        car_map = cv2.circle(car_map, [mapped_pos[1], mapped_pos[0]], radius=car_radius, color=0, thickness=2)
+        if zoom:
+            max_x = mapped_pos[0] + car_radius + padding
+            min_x = mapped_pos[0] - car_radius - padding
+            max_y = mapped_pos[1] + car_radius + padding
+            min_y = mapped_pos[1] - car_radius - padding
+            return car_map[min_x:max_x, min_y:max_y]
+        return car_map
 
-        unfloated_points = np.unique(unfloated_points, axis=0)
+    def get_roi(self, time=None):
+        if time is None:
+            time = self.time()
+        pos, _, _, _ = self.hist_keeper.find_closest_time(time)
+        mapped_pos = points_to_map([pos], self.grid_size, [self.offset_x, self.offset_y])[0]
 
-        min_x = np.min(unfloated_points[:, 0])
-        max_x = np.max(unfloated_points[:, 0])
-        
-        min_y = np.min(unfloated_points[:, 1])
-        max_y = np.max(unfloated_points[:, 1])
+        max_x = mapped_pos[0] + self.roi
+        min_x = mapped_pos[0] - self.roi
+        max_y = mapped_pos[1] + self.roi
+        min_y = mapped_pos[1] - self.roi
 
-        pic_padding = 50 # px
-        pic_height = int((max_y - min_y) / distance) + pic_padding
-        pic_width = int((max_x - min_x) / distance) + pic_padding
-        map = np.zeros((pic_height, pic_width), dtype=np.uint8)
-        map[
-            (unfloated_points[:, 1] / distance + pic_height / 2).astype(np.int32),
-            (unfloated_points[:, 0] / distance + pic_width / 2).astype(np.int32)
-        ] = 255
+        max_x, min_x = np.clip((max_x, min_x), 0, int(self.map_height / self.grid_size))
+        max_y, min_y = np.clip((max_y, min_y), 0, int(self.map_width / self.grid_size))
 
-        # extract contours
-        map = cv2.adaptiveThreshold(map, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 3, 2)
-        contours, hierarchy = cv2.findContours(map, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        largest_contour = max(contours, key=cv2.contourArea)
-        largest_contour = largest_contour.squeeze()
+        return self.map_data[min_x:max_x, min_y:max_y], pos, (min_x, min_y)
 
-        # convert contour back to points in original coordinates
-        contour_points = largest_contour.astype(np.float32)
-        real_points = np.zeros_like(contour_points)
-        real_points[:, 1] = precision * distance * (contour_points[:, 1] - pic_height / 2)
-        real_points[:, 0] = precision * distance * (contour_points[:, 0] - pic_width / 2)
-
-        huh = np.zeros_like(map)
-        huh[
-            largest_contour[:, 1],
-            largest_contour[:, 0]
-        ] = 255
-
-        points3d = np.hstack(
-            (real_points, np.ones((len(real_points), 1)) * 0.5),
-            dtype=np.float32
-        )
-        self.pcd_pub.publish(point_cloud(points3d, 'chassis'))
-
-        # extract main axis
-        print(largest_contour.shape)
-        center = np.mean(largest_contour, axis=0)
-        # centered_contour
-
-
-        img_contour = cv2.drawContours(map, contours, -1, color=155, thickness=1)
-        scale = 10
-        cv2.imshow('huh', cv2.resize(img_contour, dsize=None, fx=scale, fy=scale))
-        cv2.waitKey(1)
-
-    def extract_main_axis(self, centered_points:np.ndarray):
-
-        pca = PCA(n_components=2)
-        pca.fit(centered_points)
-        main_axis = pca.components_[0]
-        return main_axis
-
-    def split_cloud(self, center, points_2d, n_iter=4):
-        if n_iter == 0:
-            return [center]
-        
-        # 1) center all points
-        centered_points = points_2d - center
-
-        # 2) extract main axis
-        main_axis = self.extract_main_axis(centered_points)
-
-        # 3) project all points onto that axis
-        projections = np.dot(centered_points, main_axis)
-        argsorted_proj = np.argsort(projections)
-
-        projections = projections[argsorted_proj]
-        argsorted_points = points_2d[argsorted_proj]
-
-        # 4) get hal along selected axis
-        half_split = int(len(projections) / 2)
-        forward_pt1 = argsorted_points[half_split]
-
-        # FIXME make sure that pt1 and pt2 lie on opposite sides
-        if projections[half_split + 1] > projections[half_split + 2]:
-            forward_pt2 = argsorted_points[half_split + 1]
-        else:
-            forward_pt2 = argsorted_points[half_split + 2]
-        
-        #  5) select centers for next splits
-        next_fwd_center = (forward_pt1 + forward_pt2) / 2
-        next_bak_center = center
-
-        # 6) call recursive and get their centers 
-        centers_bak = self.split_cloud(next_bak_center, argsorted_points[:half_split], n_iter-1)
-        centers_fwd = self.split_cloud(next_fwd_center, argsorted_points[half_split:], n_iter-1)
-        # print(centers_bak, flush=True)
-        # print(centers_fwd, flush=True)
-        return np.concatenate((centers_bak, centers_fwd))
-
-
-    def lidar_callback(self, msg:PointCloud2):
+    def center_callback(self, msg:PointCloud2):
         time = time_to_sec(msg.header.stamp)
-        points = read_points_numpy(msg)
+        points = read_points_numpy(msg, skip_nans=True)
+        points = self.hist_keeper.points_to_global(points, time)
 
-        # extract 2d values
-        points_2d = points[:, :2]
+        # cut off colors if they are present
+        points2d = points[:, :3]
+        mapped = points_to_map(points2d, self.grid_size, [self.offset_x, self.offset_y])
+        self.update_map(mapped)
+        # car = self.draw_car(True)
+        # car = self.get_roi()[0]
+        # cv2.imshow('map', cv2.resize(car, (800,800)))
+        # cv2.waitKey(1)
+        self.publish_roi(time)
 
-        # get first forseeable center
-        # real_points = self.extract_directions([-1, 0], points_2d)
-
-        centers = self.split_cloud(
-            center=[-1, 0], 
-            points_2d=points_2d,
-            n_iter=3
-            )
-
-        points3d = np.hstack(
-            (centers, np.ones((len(centers), 1)) * 0.5),
-            dtype=np.float32
+    def publish_roi(self, time=None):
+        if time is None:
+            time = self.time()
+        roi, pos, (min_x, min_y) = self.get_roi()
+        origin = points_from_map([[min_x, min_y]], self.grid_size, [self.offset_x, self.offset_y])[0]
+        msg = occup_grid(
+            map=roi,
+            resolution=self.grid_size,
+            origin_pos=origin,
+            time=time
         )
-
-        self.pcd_pub.publish(point_cloud(points3d, 'chassis'))
-
+        self.roi_pub.publish(msg)
 
     def odom_callback(self, msg:Odometry):
         time = self.time()
-        pose, vel = parse_odometry(msg)
-
-        self.pose_hist[1:] = self.pose_hist[:-1]
-        self.pose_hist[0] = pose
-
-        self.vel_hist[1:] = self.vel_hist[:-1]
-        self.vel_hist[0] = vel
-        
-        self.time_hist[1:] = self.vel_hist[:-1]
-        self.time_hist[0] = time
-
+        pos, rot, vel = parse_odometry(msg)
+        self.hist_keeper.update(pos, rot, vel, time)
 
 def main():
     ros.init()
@@ -210,5 +149,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-    
