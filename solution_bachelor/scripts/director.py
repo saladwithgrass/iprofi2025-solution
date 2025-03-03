@@ -185,13 +185,15 @@ class Director(Node, PurePursuitController):
         # load position, rotation and velocity
         pos, rot, vel, _ = self.hist_keeper.find_closest_time(time) 
 
+        # load map
+        data, resolution, origin = load_grid(msg)
+        self.map_resolution = resolution
+        self.map_size = data.shape[0]
+        self.cur_map = data
 
         # adjust lookahead
         self.lookahead = self.min_lookahead + np.abs(vel[0] * 0.5)
         self.update_lookahead_circle()
-
-        # load map
-        data, resolution, origin = load_grid(msg)
 
         # make sure to use only points that were seen at least thrice
         _, data = cv2.threshold(
@@ -206,7 +208,7 @@ class Director(Node, PurePursuitController):
         data = cv2.dilate(data, kernel=np.ones((ksize, ksize)))
 
         # make road thinner
-        ksize = int(ROAD_WIDTH * 0.6 / self.map_resolution)
+        ksize = int(ROAD_WIDTH * 0.8 / self.map_resolution)
         if ksize % 2 == 0:
             ksize -= 1
         data = cv2.erode(data, kernel=np.ones((ksize,ksize)))
