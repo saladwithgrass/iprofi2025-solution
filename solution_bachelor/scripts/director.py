@@ -136,46 +136,12 @@ class Director(Node, PurePursuitController):
         # self.get_logger().info(f'publishing angle: {angle}')
         # print(angle)
         self.control_publisher.publish(msg)
-
-    def deal_with_slip_angle(self, slip_angle):
-        print('slip: ', np.rad2deg(slip_angle))
-        abs_angle = abs(np.rad2deg(slip_angle))
-
-        # LOW ZONE 
-        low_bound = 2
-        # nothing happens
-        if abs_angle <= low_bound:
-            return self.steering_angle, self.base_target_vel
-        
-        # MODERATE ZONE
-        medium_bound = 5
-        # reduce target velocity and steering angle by 5-10 percent 
-        min_mod_reduction = 0.05
-        max_mod_reduction = 0.1
-        if low_bound < abs_angle <= medium_bound:
-            reduction_coeff = 1 - remap_value(abs_angle, low_bound, medium_bound, min_mod_reduction, max_mod_reduction)
-            return self.steering_angle * reduction_coeff, self.base_target_vel * reduction_coeff
-
-        # HIGH ZONE
-        high_bound = 10
-        # reduce target velocity and steering angle by 10-20 percent
-        min_high_reduction = 0.1
-        max_high_reduction = 0.2
-        if medium_bound < abs_angle <= high_bound:
-            reduction_coeff = 1 - remap_value(abs_angle, medium_bound, high_bound, min_high_reduction, max_high_reduction)
-            return self.steering_angle * reduction_coeff, self.base_target_vel * reduction_coeff
-
-        # reduce velocity by 20-30 percent and countersteer non-aggressively
-        # CRITICAL ZONE
-        reduction_percent = 0.5
-        reduction_coeff = 1 - reduction_percent
-        return -np.sign(slip_angle) * 0.6, -self.base_target_vel*reduction_coeff 
-
+    
     def approximate_yaw_rate(self, fwd_vel):
         return fwd_vel * self.steering_angle / self.wheelbase
 
     def deal_with_yaw_rate(self, yaw_rate, vel):
-        if yaw_rate * self.steering_angle >= 0 and np.abs(self.approximate_yaw_rate(vel) - yaw_rate) < 0.5:
+        if yaw_rate * self.steering_angle >= 0 and np.abs(self.approximate_yaw_rate(vel) - yaw_rate) < 0.5 or np.linalg.norm(vel) < 0.5:
             return self.steering_angle, self.base_target_vel
         else:
             self.get_logger().info('countering wheel slip')
