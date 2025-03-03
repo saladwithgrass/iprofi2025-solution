@@ -73,10 +73,11 @@ class Director(Node, PurePursuitController):
         self.update_lookahead_circle()
 
         self.steering_angle = 0
-        self.base_target_vel = 5
+        self.base_target_vel = 6
         self.stuck_counter = 0
 
         self.hist_keeper = HistoryKeeper()
+        self.last_target = None
 
     def time(self):
         return self.get_clock().now().nanoseconds / 1e9
@@ -228,16 +229,22 @@ class Director(Node, PurePursuitController):
 
         if not possible_targets.any():
             self.get_logger().fatal('NO POINTS IN PROXIMITY')
-            return
+            if self.last_target is None:
+                return
+            else:
+                point_local = self.last_target
         
-        data = possible_targets
+        else:
+            data = possible_targets
 
-        # select point based on lookahead
-        point = self.select_point_ahead(data, resolution, origin)
-        # convert it to vector from vehicle
-        point_local = point - pos[:2]
-        point_local = R.from_euler('xyz', rot).inv().apply(np.concatenate((point_local, [0])))[:2]
+            # select point based on lookahead
+            point = self.select_point_ahead(data, resolution, origin)
 
+            # convert it to vector from vehicle
+            point_local = point - pos[:2]
+            point_local = R.from_euler('xyz', rot).inv().apply(np.concatenate((point_local, [0])))[:2]
+
+        self.last_target = point_local
 
         # check if car has been moving recently
         if abs(vel[0]) < 0.1 or self.stuck_counter > 0:
