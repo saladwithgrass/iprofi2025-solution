@@ -46,8 +46,8 @@ class Mapper(Node):
         self.hist_keeper = HistoryKeeper(100)
 
 
-        self.grid_size = 0.5 # m
-        self.car_size = 5.5 # m
+        self.grid_size = 0.1 # m
+        self.car_size = 4 # m
         self.car_radius = int(self.car_size / self.grid_size)
         self.map_height = 400
         self.map_width = 400

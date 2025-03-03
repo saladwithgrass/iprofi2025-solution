@@ -112,19 +112,6 @@ class Lidar(Node):
             dtype=np.uint8
             ).reshape((480, 640, 3))
 
-    def get_colored_array(self, colors):
-        colors = colors.tobytes()
-        colors = np.frombuffer(colors, dtype=np.uint8)
-        return np.stack(
-            (
-                colors[0::4], 
-                colors[1::4], 
-                colors[2::4]
-            ), 
-            axis=1, 
-            dtype=np.uint8
-            )
-
     def extract_road_image_by_color(self, color_data):
         """
         Return image where the parts that are most probable to be the road are white.
@@ -217,11 +204,6 @@ class Lidar(Node):
         # road_image = road_image[road_image[:, 0] > 0.5]
 
     def get_road_by_normals(self, points_3d):
-        # clear up a bit
-        points_3d = points_3d[points_3d[:, 2] < 2]
-        points_3d = points_3d[points_3d[:, 2] > -1]
-        # points_3d = points_3d[np.abs(points_3d[:, 1]) < 4]
-
         # init o3d objects
         o3d_pcd = o3d.geometry.PointCloud()
         o3d_pcd.points = o3d.utility.Vector3dVector(points_3d)
@@ -231,29 +213,28 @@ class Lidar(Node):
             pcd=o3d_pcd,
             voxel_size=1
             )
-        ground_mask = self.estimate_ground_normals(o3d_pcd, 10)
+        ground_mask = self.estimate_ground_normals(o3d_pcd, 30)
         return np.asarray(o3d_pcd.points)[ground_mask]
 
     def rgbd_callback(self, msg:PointCloud2):
         time = self.time()
         # convert point to numpy
-        point_data = read_points_numpy(msg, skip_nans=True)
-        good_points = np.prod(np.isfinite(point_data), axis=1, dtype=bool)    
-        point_data = point_data[good_points]
+        point_data = read_points_numpy(msg, skip_nans=False)
+        # good_points = np.prod(np.isfinite(point_data), axis=1, dtype=bool)    
+        # point_data = point_data[good_points]
 
 
         # extract colors
         colors = point_data[:, -1]
-        # colors = self.get_colored_image(colors)
-        colors = self.get_colored_array(colors)
+        colors = self.get_colored_image(colors)
         # extract 3d points
+    
         points_3d = point_data[:, :3]
-        points_3d = points_3d[np.linalg.norm(colors, axis=1) < 150]
         # convert to camera pos
         points_3d[:, :3] = self.convert_points_to_camera(points_3d[:, :3])
 
-        # selected_points = self.extract_road_by_color(colors, points_3d)
-        selected_points = self.get_road_by_normals(points_3d)
+        selected_points = self.extract_road_by_color(colors, points_3d)
+        # selected_points = self.get_road_by_normals(points_3d)
 
         cloud_msg = point_cloud(selected_points, 'chassis')
 
