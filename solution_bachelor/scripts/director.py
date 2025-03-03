@@ -141,7 +141,7 @@ class Director(Node, PurePursuitController):
         return fwd_vel * self.steering_angle / self.wheelbase
 
     def deal_with_yaw_rate(self, yaw_rate, vel):
-        if yaw_rate * self.steering_angle >= 0 and np.abs(self.approximate_yaw_rate(vel) - yaw_rate) < 0.5 or np.linalg.norm(vel) < 0.5:
+        if yaw_rate * self.steering_angle >= 0 and np.abs(self.approximate_yaw_rate(vel) - yaw_rate) < 0.5 or vel < 0:
             return self.steering_angle, self.base_target_vel
         else:
             self.get_logger().info('countering wheel slip')
