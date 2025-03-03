@@ -185,20 +185,6 @@ class Director(Node, PurePursuitController):
         # load position, rotation and velocity
         pos, rot, vel, _ = self.hist_keeper.find_closest_time(time) 
 
-        # check if car has been moving recently
-        if abs(vel[0]) < 0.1 or self.stuck_counter > 0:
-            recent_vels = self.hist_keeper.get_latest_n_data(100, True)
-            recent_vels = np.linalg.norm(recent_vels, axis=1)
-            weights = np.exp(np.linspace(1, 0, len(recent_vels)))
-            avg = np.average(recent_vels, weights=weights)
-            if avg < 0.2 or self.stuck_counter > 0:
-                if self.stuck_counter == 0:
-                    self.stuck_counter = 10
-                self.stuck_counter -= 1
-                self.get_logger().warning('IM STUCK')
-                self.publish_angle_control(-self.steering_angle)
-                self.publish_target_velocity(-1.5)
-                return
 
         # adjust lookahead
         self.lookahead = self.min_lookahead + np.abs(vel[0] * 0.5)
@@ -226,10 +212,21 @@ class Director(Node, PurePursuitController):
         data = cv2.erode(data, kernel=np.ones((ksize,ksize)))
 
         # select only road ahead
-        data = self.select_road_ahead(data, rot)
+        # data = self.select_road_ahead(data, rot)
 
         # select poinst on lookahead distance
-        data = self.get_possible_targets(data)
+
+        possible_targets = self.get_possible_targets(data)
+        while not possible_targets.any() and self.lookahead < 12.5:
+            self.lookahead += 1
+            self.update_lookahead_circle()
+            possible_targets = self.get_possible_targets(data)
+
+        if not possible_targets.any():
+            self.get_logger().fatal('NO POINTS IN PROXIMITY')
+            return
+        
+        data = possible_targets
 
         # select point based on lookahead
         point = self.select_point_ahead(data, resolution, origin)
@@ -237,6 +234,25 @@ class Director(Node, PurePursuitController):
         point_local = point - pos[:2]
         point_local = R.from_euler('xyz', rot).inv().apply(np.concatenate((point_local, [0])))[:2]
 
+
+        # check if car has been moving recently
+        if abs(vel[0]) < 0.1 or self.stuck_counter > 0:
+            # get average velocity over some time
+            recent_vels = self.hist_keeper.get_latest_n_data(100, True)
+            recent_vels = np.linalg.norm(recent_vels, axis=1)
+            weights = np.exp(np.linspace(1, 0, len(recent_vels)))
+            avg = np.average(recent_vels, weights=weights)
+            if avg < 0.2 or self.stuck_counter > 0:
+                if self.stuck_counter == 0:
+                    self.stuck_counter = 10
+                self.stuck_counter -= 1
+
+                self.steering_angle = self.get_angle([1, 0], point_local)
+
+                self.get_logger().warning('IM STUCK')
+                self.publish_angle_control(self.steering_angle)
+                self.publish_target_velocity(-1.5)
+                return
 
         cur_heading = vel[:2]
         cur_heading = [1, 0]

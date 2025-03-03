@@ -13,6 +13,8 @@ from nav_msgs.msg import Odometry
 from sensor_msgs_py.point_cloud2 import read_points_numpy
 from nav_msgs.msg import OccupancyGrid
 
+from scipy.spatial.transform import Rotation as R
+
 class Mapper(Node):
 
     def __init__(self):
@@ -45,6 +47,8 @@ class Mapper(Node):
 
 
         self.grid_size = 0.1 # m
+        self.car_size = 4 # m
+        self.car_radius = int(self.car_size / self.grid_size)
         self.map_height = 400
         self.map_width = 400
         self.offset_x = -self.map_height/2
@@ -54,6 +58,8 @@ class Mapper(Node):
         self.map_data = np.zeros(
             (int(self.map_height / self.grid_size), int(self.map_width / self.grid_size))
         )
+
+        self.visited = np.ones_like(self.map_data) * 255
 
     def time(self):
         return self.get_clock().now().nanoseconds / 1e9
@@ -67,6 +73,13 @@ class Mapper(Node):
         for point in map_points:
             if self.map_data[point[0], point[1]] < 255:
                 self.map_data[point[0], point[1]] += 1
+
+    def color_known_points(self, pos):
+        car_pos = points_to_map([pos], self.grid_size, [self.offset_x, self.offset_y])[0]
+        self.visited = cv2.circle(self.visited, car_pos[::-1], self.car_radius, color=0, thickness=-1)
+        # cv2.imshow('huh', cv2.resize(mask, (800, 800)))
+        # cv2.waitKey(1)
+
 
     def erode_map(self):
         ksize = int(ROAD_WIDTH * 0.75 / self.grid_size)
@@ -105,19 +118,22 @@ class Mapper(Node):
         max_x, min_x = np.clip((max_x, min_x), 0, int(self.map_height / self.grid_size))
         max_y, min_y = np.clip((max_y, min_y), 0, int(self.map_width / self.grid_size))
 
-        return self.map_data[min_x:max_x, min_y:max_y], pos, (min_x, min_y)
+        return cv2.bitwise_and(self.map_data, self.visited)[min_x:max_x, min_y:max_y], pos, (min_x, min_y)
 
     def center_callback(self, msg:PointCloud2):
+        # print('called')
         time = time_to_sec(msg.header.stamp)
         points = read_points_numpy(msg, skip_nans=True)
-        points = self.hist_keeper.points_to_global(points, time)
+        pos, rot, _, _ = self.hist_keeper.find_closest_time(time)
+        points = R.from_euler('xyz', rot).apply(points) + pos
 
         # cut off colors if they are present
         points2d = points[:, :3]
         mapped = points_to_map(points2d, self.grid_size, [self.offset_x, self.offset_y])
         self.update_map(mapped)
+        self.color_known_points(pos)
         # car = self.draw_car(True)
-        # car = self.get_roi()[0]
+        car = self.get_roi()[0]
         # cv2.imshow('map', cv2.resize(car, (800,800)))
         # cv2.waitKey(1)
         self.publish_roi(time)
