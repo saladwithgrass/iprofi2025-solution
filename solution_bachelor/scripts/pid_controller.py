@@ -27,41 +27,9 @@ class PIDController():
         self.error_derivative = 0
         self.prev_error = 0
 
-    def two_var_update(self, cur_vel, dt):
-        print('cur: ', cur_vel[1])
-        print('target: ', self.target_speed)
-
-        # save previous state
-        self.prev_error = self.error
-
-        # update new error
-        error = self.target_speed - cur_vel[0]
-        # error += np.abs(cur_vel[1])
-        self.error = error
-
-        # construct proportional part
-        P = self.error * self.Kp
-
-        # update integral
-        self.error_integral += error * dt
-        I = self.Ki * self.error_integral
-
-        # update derivative
-        self.error_derivative = (self.prev_error - error) / dt
-        D = self.Kd * self.error_derivative
-
-        # combine all parts
-        output = P + I + D
-        # clip to make sure it is in range
-        output = np.clip(output, -100, 100)
-        print('control: ', output)
-        print('--------')
-
-        return output
-
     def update(self, cur_speed:float, dt:float):
-        print('cur: ', cur_speed)
-        print('target: ', self.target_speed)
+        # print('cur: ', cur_speed)
+        # print('target: ', self.target_speed)
 
         # save previous state
         self.prev_error = self.error
@@ -85,8 +53,8 @@ class PIDController():
         output = P + I + D
         # clip to make sure it is in range
         output = np.clip(output, -100, 100)
-        print('control: ', output)
-        print('--------')
+        # print('control: ', output)
+        # print('--------')
 
         return output
 
