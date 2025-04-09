@@ -141,7 +141,10 @@ class Director(Node, PurePursuitController):
         return fwd_vel * self.steering_angle / self.wheelbase
 
     def deal_with_yaw_rate(self, yaw_rate, vel):
-        if yaw_rate * self.steering_angle >= 0 and np.abs(self.approximate_yaw_rate(vel) - yaw_rate) < 0.5 or vel < 0:
+        yaw_rate_correct_sign = yaw_rate * self.steering_angle >= 0 
+        yaw_rate_error_is_small = np.abs(self.approximate_yaw_rate(vel) - yaw_rate) < 0.5
+        going_backwards = vel < 0
+        if yaw_rate_correct_sign and yaw_rate_error_is_small or going_backwards:
             return self.steering_angle, self.base_target_vel
         else:
             self.get_logger().info('countering wheel slip')
@@ -208,7 +211,11 @@ class Director(Node, PurePursuitController):
 
             # convert it to vector from vehicle
             point_local = point - pos[:2]
-            point_local = R.from_euler('xyz', rot).inv().apply(np.concatenate((point_local, [0])))[:2]
+            point_local = R.from_euler(
+                'xyz', rot
+            ).inv().apply(
+                np.concatenate((point_local, [0]))
+            )[:2]
 
         self.last_target = point_local
 
@@ -236,9 +243,10 @@ class Director(Node, PurePursuitController):
         # cur_heading = [1, 0]
         # get angle to control
         self.steering_angle = self.get_angle(cur_heading, point_local)
+        # new_vel = self.base_target_vel * (1 - np.abs(self.steering_angle))
+        new_vel = self.base_target_vel
 
         # calculate slip angle
-        new_vel = self.base_target_vel
         if np.linalg.norm(vel) > 0.5:
             new_steer, new_vel = self.deal_with_yaw_rate(vel[2], vel[0])
             self.steering_angle = new_steer
