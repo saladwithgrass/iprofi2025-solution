@@ -75,8 +75,20 @@ class Mapper(Node):
                 self.map_data[point[0], point[1]] += 1
 
     def color_known_points(self, pos):
-        car_pos = points_to_map([pos], self.grid_size, [self.offset_x, self.offset_y])[0]
-        self.visited = cv2.circle(self.visited, car_pos[::-1], self.car_radius, color=0, thickness=-1)
+        car_pos = points_to_map(
+            [pos],
+            self.grid_size,
+            [self.offset_x,
+            self.offset_y]
+        )[0]
+
+        self.visited = cv2.circle(
+            self.visited,
+            car_pos[::-1],
+            self.car_radius,
+            color=0,
+            thickness=-1
+        )
         # cv2.imshow('huh', cv2.resize(mask, (800, 800)))
         # cv2.waitKey(1)
 
@@ -108,17 +120,32 @@ class Mapper(Node):
         if time is None:
             time = self.time()
         pos, _, _, _ = self.hist_keeper.find_closest_time(time)
-        mapped_pos = points_to_map([pos], self.grid_size, [self.offset_x, self.offset_y])[0]
+        mapped_pos = points_to_map(
+            [pos],
+            self.grid_size,
+            [self.offset_x,
+            self.offset_y]
+        )[0]
 
         max_x = mapped_pos[0] + self.roi
         min_x = mapped_pos[0] - self.roi
         max_y = mapped_pos[1] + self.roi
         min_y = mapped_pos[1] - self.roi
 
-        max_x, min_x = np.clip((max_x, min_x), 0, int(self.map_height / self.grid_size))
-        max_y, min_y = np.clip((max_y, min_y), 0, int(self.map_width / self.grid_size))
+        max_x, min_x = np.clip(
+            (max_x, min_x), 
+            0, 
+            int(self.map_height / self.grid_size)
+        )
+        max_y, min_y = np.clip(
+            (max_y, min_y), 
+            0, 
+            int(self.map_width / self.grid_size)
+        )
 
-        return cv2.bitwise_and(self.map_data, self.visited)[min_x:max_x, min_y:max_y], pos, (min_x, min_y)
+        return cv2.bitwise_and(
+            self.map_data, self.visited
+        )[min_x:max_x, min_y:max_y], pos, (min_x, min_y)
 
     def center_callback(self, msg:PointCloud2):
         # print('called')
@@ -129,11 +156,18 @@ class Mapper(Node):
 
         # cut off colors if they are present
         points2d = points[:, :3]
-        mapped = points_to_map(points2d, self.grid_size, [self.offset_x, self.offset_y])
+
+        # add points to map
+        mapped = points_to_map(
+            points2d, 
+            self.grid_size, 
+            [self.offset_x, self.offset_y]
+        )
+
         self.update_map(mapped)
         self.color_known_points(pos)
         # car = self.draw_car(True)
-        car = self.get_roi()[0]
+        # car = self.get_roi()[0]
         # cv2.imshow('map', cv2.resize(car, (800,800)))
         # cv2.waitKey(1)
         self.publish_roi(time)
@@ -142,7 +176,12 @@ class Mapper(Node):
         if time is None:
             time = self.time()
         roi, pos, (min_x, min_y) = self.get_roi()
-        origin = points_from_map([[min_x, min_y]], self.grid_size, [self.offset_x, self.offset_y])[0]
+
+        origin = points_from_map(
+            [[min_x, min_y]], 
+            self.grid_size, 
+            [self.offset_x, self.offset_y]
+        )[0]
         msg = occup_grid(
             map=roi,
             resolution=self.grid_size,
@@ -166,3 +205,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
